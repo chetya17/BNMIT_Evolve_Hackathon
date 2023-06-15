@@ -1,11 +1,13 @@
 import cv2
 import numpy as np
 import time
-# from keras.models import load_model
+from keras.models import load_model
+import tensorflow as tf
 
 
 down_points = (224, 224)
 size = 224
+model = load_model("model_at_epoch_3.h5")
 
 cap = cv2.VideoCapture(0)
 arr = np.array([])
@@ -34,8 +36,8 @@ def getOpticalFlow(videoList):
         flow[..., 0] -= np.mean(flow[..., 0])
         flow[..., 1] -= np.mean(flow[..., 1])
         
-        flow[..., 0] = cv2.normalize(flow[..., 0], arr,0,255,cv2.NORM_MINMAX)
-        flow[..., 1] = cv2.normalize(flow[..., 1], arr,0,255,cv2.NORM_MINMAX)
+        flow[..., 0] = cv2.normalize(flow[..., 0], None,0,255,cv2.NORM_MINMAX)
+        flow[..., 1] = cv2.normalize(flow[..., 1], None,0,255,cv2.NORM_MINMAX)
        
         flows.append(flow)
         
@@ -54,7 +56,7 @@ def Video2Npy(frameList, resize=(size,size)):
 
     startNpy = time.time()
 
-    frames = []
+    frameF = []
     frames = frameList
 
     try:
@@ -63,12 +65,12 @@ def Video2Npy(frameList, resize=(size,size)):
             frame = cv2.resize(frames[i],resize, interpolation=cv2.INTER_AREA)
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frame = np.reshape(frame, (size, size,3))
-            frames.append(frame) 
+            frameF.append(frame) 
 
     except Exception as e:
         print("Error: ", e)
     finally:
-        frames = np.array(frames)
+        frames = np.array(frameF)
         print('-----------------------------------------')
 
     flows = getOpticalFlow(frames)
@@ -104,13 +106,16 @@ while(True):
 
         cv2.imshow("Live Video", croppedFrame)
 
-        if i == 1:
+        if i == 65:
     
             j +=1
             startOpt = time.time()
             
+            print(len(frameList))
             result = Video2Npy(frameList)
 
+            result = np.uint8(result)
+            result = np.float32(result)
             # myFile = open('sample.txt', 'r+')
             # print("Done : ", result)
             # result=result.reshape(224,1120)
@@ -121,21 +126,17 @@ while(True):
             endOpt = time.time()
             e = endOpt - startOpt
             frameList = []
-            print(f"Total Time : {e} secs") 
+            print(f"Total Time : {e} secs")
 
-            print(f"Result of iteration {j} is {np.shape(result)}")
-
-            # print("Model Prediction -------------------------")
-            # model = load_model("model_at_epoch_3.h5")
-            # prediction = model.predict
-            # print(f"Prediction is {prediction}")
-            # i = 0
+            result = tf.stack([result],axis=0) 
+            print(f"Result of iteration {j} is {np.shape(np.array(result))}")
+            
+            print("Model Prediction -------------------------")
+            prediction = model.predict_step(result)
+            print(f"Prediction is {prediction}")
+            i = 0
 
 
 cap.release()
 
 cv2.destroyAllWindows()
-
-
-
-
